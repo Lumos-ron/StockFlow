@@ -62,27 +62,15 @@ const db = {
 export const api = {
   // 发送验证码 (使用 EmailJS)
   sendVerificationCode: async (email: string): Promise<boolean> => {
-    // 初始化 EmailJS
-    if (EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY') {
-        console.error("请在 services/api.ts 中配置 EmailJS 凭证");
-        // 如果未配置，回退到 Console 模式以便测试
-        return new Promise((resolve) => {
-             const code = Math.floor(100000 + Math.random() * 900000).toString();
-             verificationCodes.set(email, code);
-             console.group('📧 [未配置EmailJS - 模拟模式]');
-             console.log(`请在代码中配置真实 Key 以发送邮件。`);
-             console.log(`验证码: ${code}`);
-             console.groupEnd();
-             setTimeout(() => resolve(true), 1000);
-        });
+    // 检查库是否加载
+    if (!emailjs) {
+        console.error("EmailJS SDK failed to load.");
+        throw new Error('系统组件加载失败，请刷新页面重试');
     }
 
     try {
-        emailjs.init(EMAILJS_PUBLIC_KEY);
-        
         const code = Math.floor(100000 + Math.random() * 900000).toString();
-        verificationCodes.set(email, code); // 存储到内存以供后续验证
-
+        
         // 这里的参数必须与你在 EmailJS 模板中设置的变量名一致
         // to_email: 对应模板设置中的 To Email
         // code: 对应模板正文中的 {{code}}
@@ -91,21 +79,34 @@ export const api = {
             code: code,
         };
 
+        console.log('Sending email via EmailJS...', {
+            serviceId: EMAILJS_SERVICE_ID,
+            templateId: EMAILJS_TEMPLATE_ID,
+            publicKey: '***' + EMAILJS_PUBLIC_KEY.slice(-4)
+        });
+
+        // 显式传递 Public Key 作为第四个参数，这是最稳健的调用方式
         const response = await emailjs.send(
             EMAILJS_SERVICE_ID,
             EMAILJS_TEMPLATE_ID,
-            templateParams
+            templateParams,
+            EMAILJS_PUBLIC_KEY
         );
 
+        console.log('EmailJS Response:', response);
+
         if (response.status === 200) {
+            verificationCodes.set(email, code); // 仅在发送成功后存储
             console.log('Email sent successfully!');
             return true;
         } else {
-            throw new Error('Email service returned status ' + response.status);
+            throw new Error(`Email service returned status ${response.status}: ${response.text}`);
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Failed to send email:', error);
-        throw new Error('验证码发送失败，请检查邮箱或稍后重试');
+        // 提取更详细的错误信息供调试
+        const errorMessage = error?.text || error?.message || '未知错误';
+        throw new Error(`验证码发送失败: ${errorMessage}`);
     }
   },
 
