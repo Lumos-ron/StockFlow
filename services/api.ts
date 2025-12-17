@@ -85,7 +85,7 @@ export const api = {
             publicKey: '***' + EMAILJS_PUBLIC_KEY.slice(-4)
         });
 
-        // 显式传递 Public Key 作为第四个参数，这是最稳健的调用方式
+        // 显式传递 Public Key 作为第四个参数
         const response = await emailjs.send(
             EMAILJS_SERVICE_ID,
             EMAILJS_TEMPLATE_ID,
@@ -104,9 +104,29 @@ export const api = {
         }
     } catch (error: any) {
         console.error('Failed to send email:', error);
-        // 提取更详细的错误信息供调试
-        const errorMessage = error?.text || error?.message || '未知错误';
-        throw new Error(`验证码发送失败: ${errorMessage}`);
+        
+        // 健壮的错误解析逻辑
+        let msg = '未知错误';
+        
+        if (error?.text) {
+             // EmailJS 返回的错误对象通常包含 text 字段
+             msg = `${error.text} (Status: ${error.status || 'Unknown'})`;
+        } else if (error instanceof Error) {
+             // 标准 JS Error
+             msg = error.message;
+        } else if (typeof error === 'string') {
+             // 字符串错误
+             msg = error;
+        } else {
+             // 尝试 JSON 序列化其他类型的对象
+             try {
+                 msg = JSON.stringify(error);
+             } catch (e) {
+                 msg = '无法解析的错误对象';
+             }
+        }
+        
+        throw new Error(`验证码发送失败: ${msg}`);
     }
   },
 
