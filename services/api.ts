@@ -1,5 +1,15 @@
 import { Product, User } from '../types';
 import { INITIAL_PRODUCTS } from '../constants';
+// @ts-ignore
+import emailjs from '@emailjs/browser';
+
+// ============================================================
+// CONFIGURATION: 请替换为你自己的 EmailJS 凭证
+// ============================================================
+const EMAILJS_SERVICE_ID = 'service_39ge3qw';
+const EMAILJS_TEMPLATE_ID = 'template_esn0byn';
+const EMAILJS_PUBLIC_KEY: string = 'rnzFeuTFCLR9mD9ho';
+// ============================================================
 
 // 模拟网络延迟 (ms)
 const NETWORK_DELAY = 600;
@@ -9,6 +19,8 @@ const DB_USERS_KEY = 'stockflow_cloud_users';
 const DB_DATA_PREFIX = 'stockflow_cloud_data_';
 
 // 内存中临时存储验证码 (Email -> Code)
+// 注意：在纯前端项目中，验证码逻辑暴露在客户端是不安全的。
+// 生产环境应由后端生成并发送验证码。
 const verificationCodes = new Map<string, string>();
 
 // 模拟数据库接口
@@ -47,28 +59,54 @@ const db = {
   }
 };
 
-// 模拟异步请求
-const delay = <T>(data: T): Promise<T> => {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(data), NETWORK_DELAY);
-  });
-};
-
 export const api = {
-  // 发送验证码
+  // 发送验证码 (使用 EmailJS)
   sendVerificationCode: async (email: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
+    // 初始化 EmailJS
+    if (EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY') {
+        console.error("请在 services/api.ts 中配置 EmailJS 凭证");
+        // 如果未配置，回退到 Console 模式以便测试
+        return new Promise((resolve) => {
+             const code = Math.floor(100000 + Math.random() * 900000).toString();
+             verificationCodes.set(email, code);
+             console.group('📧 [未配置EmailJS - 模拟模式]');
+             console.log(`请在代码中配置真实 Key 以发送邮件。`);
+             console.log(`验证码: ${code}`);
+             console.groupEnd();
+             setTimeout(() => resolve(true), 1000);
+        });
+    }
+
+    try {
+        emailjs.init(EMAILJS_PUBLIC_KEY);
+        
         const code = Math.floor(100000 + Math.random() * 900000).toString();
-        verificationCodes.set(email, code);
-        // 在控制台打印验证码，模拟发送邮件
-        console.group('📧 [邮件发送模拟]');
-        console.log(`收件人: ${email}`);
-        console.log(`验证码: ${code}`);
-        console.groupEnd();
-        resolve(true);
-      }, NETWORK_DELAY);
-    });
+        verificationCodes.set(email, code); // 存储到内存以供后续验证
+
+        // 这里的参数必须与你在 EmailJS 模板中设置的变量名一致
+        // to_email: 对应模板设置中的 To Email
+        // code: 对应模板正文中的 {{code}}
+        const templateParams = {
+            to_email: email,
+            code: code,
+        };
+
+        const response = await emailjs.send(
+            EMAILJS_SERVICE_ID,
+            EMAILJS_TEMPLATE_ID,
+            templateParams
+        );
+
+        if (response.status === 200) {
+            console.log('Email sent successfully!');
+            return true;
+        } else {
+            throw new Error('Email service returned status ' + response.status);
+        }
+    } catch (error) {
+        console.error('Failed to send email:', error);
+        throw new Error('验证码发送失败，请检查邮箱或稍后重试');
+    }
   },
 
   // 登录 (支持用户名或邮箱)
