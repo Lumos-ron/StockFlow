@@ -56,24 +56,27 @@ export const RestockModal: React.FC<RestockModalProps> = ({
     if (!tableRef.current) return;
     setIsGenerating(true);
     
-    try {
-      const canvas = await html2canvas(tableRef.current, {
-        scale: 2,
-        backgroundColor: '#ffffff', // Ensure white background
-        useCORS: true,
-      });
-      
-      const image = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = image;
-      link.download = `StockFlow_补货单_${currentDate.replace(/\//g, '-')}.png`;
-      link.click();
-    } catch (err) {
-      console.error("Failed to generate image", err);
-      alert("生成图片失败，请重试");
-    } finally {
-      setIsGenerating(false);
-    }
+    // Wait for React to render the "text-only" view before capturing
+    setTimeout(async () => {
+      try {
+        const canvas = await html2canvas(tableRef.current!, {
+          scale: 2,
+          backgroundColor: '#ffffff', // Ensure white background
+          useCORS: true,
+        });
+        
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.href = image;
+        link.download = `StockFlow_补货单_${currentDate.replace(/\//g, '-')}.png`;
+        link.click();
+      } catch (err) {
+        console.error("Failed to generate image", err);
+        alert("生成图片失败，请重试");
+      } finally {
+        setIsGenerating(false);
+      }
+    }, 200);
   };
 
   const toggleSelectAll = () => {
@@ -256,30 +259,48 @@ export const RestockModal: React.FC<RestockModalProps> = ({
                            )}
                         </td>
                         <td className="py-4 px-2 align-middle text-center">
-                          <input 
-                             type="text" 
-                             className="w-full text-center bg-transparent focus:bg-white border-b border-transparent focus:border-blue-500 focus:outline-none py-1.5 px-1 font-medium text-slate-700"
-                             placeholder="输入规格"
-                             value={p.specs || ''}
-                             onChange={(e) => onUpdateProduct(p.id, 'specs', e.target.value)}
-                          />
+                          {isGenerating ? (
+                            <div className="py-1.5 px-1 font-medium text-slate-700 text-center min-h-[32px] flex items-center justify-center">
+                              {p.specs || '-'}
+                            </div>
+                          ) : (
+                            <input 
+                               type="text" 
+                               className="w-full text-center bg-transparent focus:bg-white border-b border-transparent focus:border-blue-500 focus:outline-none py-1.5 px-1 font-medium text-slate-700"
+                               placeholder="输入规格"
+                               value={p.specs || ''}
+                               onChange={(e) => onUpdateProduct(p.id, 'specs', e.target.value)}
+                            />
+                          )}
                         </td>
                         <td className="py-4 px-2 align-middle text-center">
-                           <input 
-                             type="number" 
-                             className="w-full text-center bg-blue-50/50 focus:bg-white border-b border-transparent focus:border-blue-500 focus:outline-none py-1.5 px-1 font-bold text-blue-700 text-lg"
-                             value={finalQty}
-                             onChange={(e) => onUpdateProduct(p.id, 'customRestockQty', parseInt(e.target.value) || 0)}
-                          />
+                           {isGenerating ? (
+                              <div className="py-1.5 px-1 font-bold text-blue-700 text-lg text-center bg-blue-50/20 rounded">
+                                {finalQty}
+                              </div>
+                           ) : (
+                              <input 
+                                type="number" 
+                                className="w-full text-center bg-blue-50/50 focus:bg-white border-b border-transparent focus:border-blue-500 focus:outline-none py-1.5 px-1 font-bold text-blue-700 text-lg"
+                                value={finalQty}
+                                onChange={(e) => onUpdateProduct(p.id, 'customRestockQty', parseInt(e.target.value) || 0)}
+                              />
+                           )}
                         </td>
                         <td className="py-4 px-2 align-middle text-center">
-                          <input 
-                             type="number" 
-                             className="w-full text-center bg-transparent focus:bg-white border-b border-transparent focus:border-blue-500 focus:outline-none py-1.5 px-1 font-medium text-slate-700"
-                             placeholder="0"
-                             value={p.qtyPerCarton || ''}
-                             onChange={(e) => onUpdateProduct(p.id, 'qtyPerCarton', parseInt(e.target.value) || 0)}
-                          />
+                          {isGenerating ? (
+                             <div className="py-1.5 px-1 font-medium text-slate-700 text-center">
+                               {p.qtyPerCarton || '-'}
+                             </div>
+                          ) : (
+                            <input 
+                               type="number" 
+                               className="w-full text-center bg-transparent focus:bg-white border-b border-transparent focus:border-blue-500 focus:outline-none py-1.5 px-1 font-medium text-slate-700"
+                               placeholder="0"
+                               value={p.qtyPerCarton || ''}
+                               onChange={(e) => onUpdateProduct(p.id, 'qtyPerCarton', parseInt(e.target.value) || 0)}
+                            />
+                          )}
                         </td>
                         <td className="py-4 px-2 align-middle text-center">
                            <div className="font-bold text-slate-800 text-lg flex items-center justify-center gap-1">
