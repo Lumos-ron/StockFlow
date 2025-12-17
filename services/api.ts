@@ -68,21 +68,29 @@ export const api = {
         throw new Error('系统组件加载失败，请刷新页面重试');
     }
 
+    if (!email || !email.includes('@')) {
+       throw new Error('邮箱地址无效');
+    }
+
     try {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         
         // 这里的参数必须与你在 EmailJS 模板中设置的变量名一致
-        // to_email: 对应模板设置中的 To Email
-        // code: 对应模板正文中的 {{code}}
+        // 为防止配置不同，我们同时发送常用的变量名，确保能匹配到模板中的 To Email 设置
         const templateParams = {
-            to_email: email,
+            to_email: email,    // 常用：目标邮箱变量
+            user_email: email,  // 备用：有时候用户命名为 user_email
+            email: email,       // 备用：有时候直接用 email
+            reply_to: email,    // 常用：回复地址
             code: code,
+            message: `您的验证码是: ${code}`, // 以防模板使用 {{message}}
         };
 
         console.log('Sending email via EmailJS...', {
             serviceId: EMAILJS_SERVICE_ID,
             templateId: EMAILJS_TEMPLATE_ID,
-            publicKey: '***' + EMAILJS_PUBLIC_KEY.slice(-4)
+            publicKey: '***' + EMAILJS_PUBLIC_KEY.slice(-4),
+            params: templateParams
         });
 
         // 显式传递 Public Key 作为第四个参数
