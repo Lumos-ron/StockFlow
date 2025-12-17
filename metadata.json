@@ -1,0 +1,5 @@
+{
+  "name": "StockFlow",
+  "description": "A minimalist, high-performance inventory management dashboard for tracking stock levels, shipments, and automated restock calculations based on lead times.",
+  "requestFramePermissions": []
+}
