@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { api } from '../services/api';
-import { ArrowRight, Lock, User as UserIcon, Loader2, Mail, KeyRound, Timer } from 'lucide-react';
+import { ArrowRight, Lock, User as UserIcon, Loader2, Mail, KeyRound, Timer, Info } from 'lucide-react';
 
 interface AuthScreenProps {
   onLogin: (user: User) => void;
@@ -59,10 +59,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     setLoading(true);
     try {
       await api.sendVerificationCode(email);
-      setSuccessMsg('验证码已发送 (请查看浏览器控制台 Console)');
+      setSuccessMsg('验证码已发送，请检查您的邮箱');
       setCountdown(60);
     } catch (err: any) {
-      setError('发送失败，请重试');
+      setError(err.message || '发送失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
     try {
       if (mode === 'LOGIN') {
-        // Use username as generic identifier (username OR email)
         const user = await api.login(username, password);
         localStorage.setItem('stockflow_session', JSON.stringify({ username: user.username }));
         onLogin(user);
@@ -94,6 +93,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDemoLogin = () => {
+      setUsername('demo');
+      setPassword('password');
   };
 
   return (
@@ -162,7 +166,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
               </div>
             )}
 
-            {/* Email Field (Register & Forgot Password) */}
+            {/* Email Field */}
             {(mode === 'REGISTER' || mode === 'FORGOT_PASSWORD') && (
                <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5 ml-1">邮箱地址</label>
@@ -198,7 +202,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
                       type="text"
                       required
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                      placeholder="6位验证码"
+                      placeholder="6位验证码 (演示: 123456)"
                       value={code}
                       onChange={(e) => setCode(e.target.value)}
                       disabled={loading}
@@ -239,12 +243,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
             {/* Error & Success Messages */}
             {error && (
-              <div className="text-rose-500 text-xs text-center bg-rose-50 py-2 rounded-lg font-medium border border-rose-100">
+              <div className="text-rose-600 text-xs text-center bg-rose-50 py-2.5 px-3 rounded-lg font-medium border border-rose-100 leading-tight">
                 {error}
               </div>
             )}
             {successMsg && (
-              <div className="text-emerald-600 text-xs text-center bg-emerald-50 py-2 rounded-lg font-medium border border-emerald-100">
+              <div className="text-emerald-600 text-xs text-center bg-emerald-50 py-2.5 px-3 rounded-lg font-medium border border-emerald-100 leading-tight">
                 {successMsg}
               </div>
             )}
@@ -271,29 +275,43 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
             </button>
           </form>
 
-          {mode === 'LOGIN' && (
-             <div className="mt-4 text-center">
+          {/* Demo Account Tip & Switch Mode */}
+          <div className="mt-6 flex flex-col items-center gap-4">
+             {mode === 'LOGIN' && (
+                <div 
+                   onClick={handleDemoLogin}
+                   className="w-full bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-start gap-3 cursor-pointer hover:bg-blue-100/80 transition-colors group"
+                >
+                   <Info size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                   <div className="text-left">
+                      <p className="text-xs font-bold text-blue-800">无需注册，立即体验</p>
+                      <p className="text-[11px] text-blue-600 mt-0.5">
+                         点击此处自动填充演示账号: <br/>
+                         <span className="font-mono bg-white/50 px-1 rounded text-blue-700">demo</span> / <span className="font-mono bg-white/50 px-1 rounded text-blue-700">password</span>
+                      </p>
+                   </div>
+                   <ArrowRight size={14} className="text-blue-400 ml-auto self-center opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+             )}
+
+             {mode === 'LOGIN' ? (
                 <button 
                   type="button"
                   onClick={() => handleModeSwitch('FORGOT_PASSWORD')}
-                  className="text-xs text-slate-400 hover:text-blue-600 transition-colors"
+                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  忘记密码？
+                  忘记密码?
                 </button>
-             </div>
-          )}
-          
-          {mode === 'FORGOT_PASSWORD' && (
-             <div className="mt-4 text-center">
+             ) : (
                 <button 
                   type="button"
                   onClick={() => handleModeSwitch('LOGIN')}
-                  className="text-xs text-slate-400 hover:text-blue-600 transition-colors"
+                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   返回登录
                 </button>
-             </div>
-          )}
+             )}
+          </div>
         </div>
       </div>
     </div>

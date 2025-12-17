@@ -5,15 +5,13 @@ import { InventoryTable } from './components/InventoryTable';
 import { AddProductModal } from './components/AddProductModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { RestockModal } from './components/RestockModal';
-import { AuthScreen } from './components/AuthScreen';
-import { api } from './services/api'; // Import the new API service
+import { api } from './services/api';
 import { 
   Product, 
   ProductCalculation, 
   LEAD_TIME_DAYS,
   PRODUCTION_DAYS,
-  SAFETY_STOCK_DAYS,
-  User
+  SAFETY_STOCK_DAYS
 } from './types';
 import { 
   BarChart, 
@@ -28,17 +26,13 @@ import {
 import { Package, AlertTriangle, ShoppingCart, Activity, CheckCircle2, Truck, X, Cloud, Loader2, CloudCheck } from 'lucide-react';
 
 const App: React.FC = () => {
-  // Auth State
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
-
   // App Data State
   const [currentView, setCurrentView] = useState<'dashboard' | 'inventory' | 'alerts'>('dashboard');
   const [products, setProducts] = useState<Product[]>([]);
   const [seaFreightDays, setSeaFreightDays] = useState(LEAD_TIME_DAYS);
   
   // Loading & Sync State
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [syncStatus, setSyncStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
 
@@ -51,41 +45,23 @@ const App: React.FC = () => {
     product: null
   });
 
-  // Check for session on mount
+  // Load Data from Local Storage on Mount
   useEffect(() => {
-    const sessionStr = localStorage.getItem('stockflow_session');
-    if (sessionStr) {
+    const loadData = async () => {
+      setIsLoadingData(true);
       try {
-        const session = JSON.parse(sessionStr);
-        setUser({ username: session.username });
-      } catch (e) {
-        localStorage.removeItem('stockflow_session');
+        const data = await api.fetchData();
+        setProducts(data.products || []);
+        setSeaFreightDays(data.seaFreightDays || LEAD_TIME_DAYS);
+        setLastSavedTime(new Date().toLocaleTimeString());
+      } catch (error) {
+        console.error("Failed to fetch data", error);
+      } finally {
+        setIsLoadingData(false);
       }
-    }
-    setIsAuthChecking(false);
+    };
+    loadData();
   }, []);
-
-  // Load User Data from Cloud/API when user logs in
-  useEffect(() => {
-    if (user) {
-      const loadData = async () => {
-        setIsLoadingData(true);
-        try {
-          const data = await api.fetchData(user.username);
-          setProducts(data.products || []);
-          setSeaFreightDays(data.seaFreightDays || LEAD_TIME_DAYS);
-          setLastSavedTime(new Date().toLocaleTimeString());
-        } catch (error) {
-          console.error("Failed to fetch cloud data", error);
-        } finally {
-          setIsLoadingData(false);
-        }
-      };
-      loadData();
-    } else {
-      setProducts([]);
-    }
-  }, [user]);
 
   // Auto-Save / Sync Data Logic
   // Using a ref to track if it's the initial load to avoid saving immediately upon load
@@ -93,16 +69,18 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (isFirstRender.current) {
-      isFirstRender.current = false;
+      if (!isLoadingData) {
+         isFirstRender.current = false;
+      }
       return;
     }
 
-    if (user && !isLoadingData) {
+    if (!isLoadingData) {
       setSyncStatus('saving');
       
       const timer = setTimeout(async () => {
         try {
-          await api.saveData(user.username, {
+          await api.saveData({
             products,
             seaFreightDays,
             lastUpdated: new Date().toISOString()
@@ -113,19 +91,11 @@ const App: React.FC = () => {
           setSyncStatus('error');
           console.error("Sync failed", error);
         }
-      }, 1500); // Debounce save requests
+      }, 1000); // Debounce save requests
 
       return () => clearTimeout(timer);
     }
-  }, [products, seaFreightDays, user, isLoadingData]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('stockflow_session');
-    setUser(null);
-    setCurrentView('dashboard');
-    setIsLoadingData(false);
-    isFirstRender.current = true;
-  };
+  }, [products, seaFreightDays, isLoadingData]);
 
   // Derived Dynamic Constants
   const totalLeadTime = seaFreightDays + PRODUCTION_DAYS + SAFETY_STOCK_DAYS;
@@ -271,21 +241,6 @@ const App: React.FC = () => {
     return products.filter(p => selectedIds.has(p.id));
   }, [products, selectedIds]);
 
-  // Loading Screen
-  if (isAuthChecking) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
-         <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-600 rounded-full animate-spin"></div>
-         <p className="text-slate-400 text-sm font-medium">正在连接服务器...</p>
-      </div>
-    );
-  }
-
-  // Auth Screen
-  if (!user) {
-    return <AuthScreen onLogin={setUser} />;
-  }
-
   // Data Loading Screen
   if (isLoadingData) {
     return (
@@ -298,7 +253,7 @@ const App: React.FC = () => {
                <Loader2 size={16} className="text-blue-600 animate-spin" />
             </div>
          </div>
-         <p className="text-slate-500 text-sm font-medium">正在同步云端数据...</p>
+         <p className="text-slate-500 text-sm font-medium">正在初始化数据...</p>
       </div>
     );
   }
@@ -308,8 +263,6 @@ const App: React.FC = () => {
       <Sidebar 
         currentView={currentView} 
         onChangeView={setCurrentView} 
-        user={user}
-        onLogout={handleLogout}
       />
       
       <main className="flex-1 ml-64 p-8 overflow-y-auto h-screen flex flex-col relative pb-24">
@@ -339,23 +292,23 @@ const App: React.FC = () => {
                 {syncStatus === 'saving' ? (
                   <>
                     <Loader2 size={12} className="animate-spin" />
-                    正在同步...
+                    自动保存中...
                   </>
                 ) : syncStatus === 'error' ? (
                   <>
                      <AlertTriangle size={12} />
-                     同步失败
+                     保存失败
                   </>
                 ) : (
                   <>
                     <CloudCheck size={14} />
-                    云端已同步
+                    已保存至本地
                   </>
                 )}
              </div>
              {lastSavedTime && (
                <span className="text-[10px] text-slate-400 font-medium px-1">
-                 上次保存: {lastSavedTime}
+                 上次更新: {lastSavedTime}
                </span>
              )}
           </div>

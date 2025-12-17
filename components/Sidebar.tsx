@@ -1,15 +1,12 @@
 import React from 'react';
-import { LayoutDashboard, Package, Settings, AlertCircle, LogOut, UserCircle } from 'lucide-react';
-import { User } from '../types';
+import { LayoutDashboard, Package, Settings, AlertCircle } from 'lucide-react';
 
 interface SidebarProps {
   currentView: 'dashboard' | 'inventory' | 'alerts';
   onChangeView: (view: 'dashboard' | 'inventory' | 'alerts') => void;
-  user?: User | null;
-  onLogout?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, user, onLogout }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
   const linkClass = (isActive: boolean) =>
     `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer ${
       isActive
@@ -54,30 +51,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, use
       </nav>
 
       <div className="p-4 space-y-2 border-t border-slate-800">
-        {user && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/50 mb-2">
-            <UserCircle size={20} className="text-blue-400" />
-            <div className="overflow-hidden">
-               <p className="text-xs text-slate-400">当前用户</p>
-               <p className="text-sm font-bold text-white truncate">{user.username}</p>
-            </div>
-          </div>
-        )}
-        
         <div className={linkClass(false)}>
           <Settings size={20} />
           <span className="font-medium">系统设置</span>
         </div>
         
-        {onLogout && (
-          <div 
-            className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 cursor-pointer text-slate-400 hover:bg-rose-900/20 hover:text-rose-400"
-            onClick={onLogout}
-          >
-            <LogOut size={20} />
-            <span className="font-medium">退出登录</span>
-          </div>
-        )}
+        <div className="px-4 py-3 text-xs text-slate-600 text-center">
+          <p>本地存储模式</p>
+          <p>数据保存在您的浏览器中</p>
+        </div>
       </div>
     </div>
   );
